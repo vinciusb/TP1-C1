@@ -1,0 +1,1 @@
+/usr/coolc/src/PA2/stringtab.cc
