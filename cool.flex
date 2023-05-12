@@ -171,16 +171,6 @@ LETTER  ({UPPER_ALPHA}|{LOWER_ALPHA})
 ID      ({LETTER}|{DIGIT}|_)
 NEWLINE ({BR})
 
-/* def: Delimiter (Begin) */
-
-COM_BEGIN ("(*")
-COM_END   ("*)")
-
-LINE_COM_BEGIN  ("--")
-
-STR_DELIM     ("\"")
-
-
 /* DEFINIÇÃO DOS MEUS TOKENS */
 
 LET         (?i:let)
@@ -208,11 +198,22 @@ ASSIGN      ("<-")
 NOT         (?i:not)
 LE          ("<=")
 
+/* DELIMITER */
+
+COM_BEGIN ("(*")
+COM_END   ("*)")
+
+LINE_COM_BEGIN  ("--")
+
+STR_DELIM     ("\"")
+
 /* FAZ MATCH COM QUALQUER COISA RESTANTE */
 ANY (.)
 
 %%
-
+ /*
+  * (A <
+  */
 {COM_BEGIN} {
   /* Começar comentario */
   comment_depth++;
