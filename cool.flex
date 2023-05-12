@@ -407,7 +407,7 @@ ANY (.)
   ++curr_lineno;
 }
 
-{WHITESPACE} {
+{WS} {
    
 }
 
