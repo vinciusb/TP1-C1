@@ -19,19 +19,10 @@
 /* Max size of string constants */
 #define MAX_STR_CONST 1025
 #define YY_NO_UNPUT   /* keep g++ happy */
-/*
-   The two statements below are here just so this program will compile.
-   You may need to change or remove them on your final code.
-*/
-#define yywrap() 1
-#define YY_SKIP_YYWRAP
 
 extern FILE *fin; /* we read from this file */
 
-/* define YY_INPUT so we read from the FILE fin:
- * This change makes it possible to use this scanner in
- * the Cool compiler.
- */
+/* define YY_INPUT so we read from the FILE fin*/
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max_size) \
 	if ( (result = fread( (char*)buf, sizeof(char), max_size, fin)) < 0) \
@@ -41,7 +32,6 @@ char string_buf[MAX_STR_CONST]; /* to assemble string constants */
 char *string_buf_ptr;
 
 extern int curr_lineno;
-extern int verbose_flag;
 
 extern YYSTYPE cool_yylval;
 
@@ -104,17 +94,9 @@ extern YYSTYPE cool_yylval;
   }\
 }
 
-/* def: String   (End) */
-
-
-/* def: Comment (Begin) */
+/* PROFUNDIDADE DO COMENTARIO */
 
 int comment_depth = 0;
-
-/* def: Comment   (End) */
-
-
-/* def: String (Begin) */
 
 char string_buf_overflow_flag = FALSE;
 
@@ -125,11 +107,6 @@ void init_string_buf();
 int append_string_buf(std::string str);
 
 int append_string_buf(std::string str, int length);
-
-/* def: String   (End) */
-
-
-/* def: Debug Purpose (Begin) */
 
 // #define VERBOSE
 
@@ -161,7 +138,7 @@ TRUE (t(?i:rue))
 FALSE (f(?i:alse))
 
 OPS  ("("|")"|"*"|"+"|","|"-"|"."|"/"|":"|";"|"<"|"="|"@"|"{"|"}"|"~")
-WS (" " | "\f" | "\r" | "\t" | "\v")
+WS (" "|"\f"|"\r"|"\t"|"\v")
 
 DIGIT ([0-9])
 UPPER_ALPHA ([A-Z])
@@ -211,9 +188,11 @@ STR_DELIM     ("\"")
 ANY (.)
 
 %%
+
  /*
   * (A <
   */
+
 {COM_BEGIN} {
   /* Começar comentario */
   comment_depth++;
@@ -254,11 +233,11 @@ ANY (.)
 }
 
 <COMMENT>{ANY} {
-
+  //
 }
 
 {LINE_COM_BEGIN}{ANY}* {
-
+  //
 }
 
 {STR_DELIM} { 
