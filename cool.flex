@@ -44,15 +44,6 @@ extern YYSTYPE cool_yylval;
 #define TRUE 1
 #define FALSE 0
 
-#define RED 31
-#define GREEN 32
-#define YELLOW 33
-#define BLUE 34
-#define MAGENTA 35
-#define CYAN 36
-#define WHITE 37
-#define RESET 0
-
 
 /* HELPERS */
 
@@ -102,21 +93,9 @@ char string_buf_overflow_flag = FALSE;
 
 char string_invalid_char_flag = FALSE;
 
-void init_string_buf();
-
 int append_string_buf(std::string str);
 
 int append_string_buf(std::string str, int length);
-
-// #define VERBOSE
-
-void verbose();
-
-void print(std::string str);
-
-std::string coloring(std::string str, int color);
-
-/* def: Debug Purpose   (End) */
 
 %}
 
@@ -247,7 +226,6 @@ ANY (.)
 
 {STR_DELIM} { 
   BEGIN(STRING);
-  init_string_buf();
 }
 
 <STRING>{STR_DELIM} {
@@ -442,15 +420,6 @@ ANY (.)
 
 %%
 
-/* def: String (Begin) */
-
-void init_string_buf() {
-  string_buf[0] = '\0';
-  string_buf_ptr = string_buf;
-  string_buf_overflow_flag = FALSE;
-  string_invalid_char_flag = FALSE;
-}
-
 int append_string_buf(std::string str) {
   return append_string_buf(str, str.length());
 }
@@ -464,34 +433,5 @@ int append_string_buf(std::string str, int length) {
 
   strncat(string_buf, str.c_str(), length);
 
-  print("Current string_buf       : " + std::string(string_buf));
-  print("Current string_buf length: " + std::to_string(result_length));
-
   return result_length;
 }
-
-/* def: String   (End) */
-
-
-/* def: Debug Purpose (Begin) */
-
-void verbose() {
-#ifdef VERBOSE
-  std::cout << coloring("[*] DEBUG", RED) << std::endl;
-  std::cout << coloring("    - Input (yytext):  ", MAGENTA) << yytext << std::endl;
-  std::cout << coloring("    - Length (yyleng): ", MAGENTA) << yyleng << std::endl;
-  std::cout << coloring("    - Comment Depth:   ", MAGENTA) << comment_depth << std::endl;
-#endif
-}
-
-void print(std::string str) {
-#ifdef VERBOSE
-  std::cout << coloring("[*] OUT: ", YELLOW) << str << std::endl;
-#endif
-}
-
-std::string coloring(std::string str, int color) {
-  return "\x1b[" + std::to_string(color) + "m" + str + "\x1b[" + std::to_string(RESET) + "m";
-}
-
-/* def: Debug Purpose   (End) */
