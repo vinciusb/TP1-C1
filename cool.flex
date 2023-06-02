@@ -22,11 +22,11 @@
 
 extern FILE *fin; /* we read from this file */
 
-/* define YY_INPUT so we read from the FILE fin*/
+/* define YY_INPUT assim podemos ler do arquivo FILE fin */
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max_size) \
-	if ( (result = fread( (char*)buf, sizeof(char), max_size, fin)) < 0) \
-		YY_FATAL_ERROR( "read() in flex scanner failed");
+  if ( (result = fread( (char*)buf, sizeof(char), max_size, fin)) < 0) \
+    YY_FATAL_ERROR( "read() in flex scanner failed");
 
 char string_buf[MAX_STR_CONST]; /* to assemble string constants */
 char *string_buf_ptr;
@@ -54,7 +54,7 @@ extern YYSTYPE cool_yylval;
 #define RESET 0
 
 
-/*  HELPERS */
+/* HELPERS */
 
 #define SET_ERROR_MSG(X) (cool_yylval.error_msg = X)
 
@@ -68,7 +68,7 @@ extern YYSTYPE cool_yylval;
 
 #define ADD_STRING__GET_ELEM(...) GET_3D_MACRO(__VA_ARGS__, ADD_STRING_2, ADD_STRING_1)(__VA_ARGS__)
 
-/* def: String (Begin) */
+/* DEFINICOES DE STRING */
 
 #define APPEND_STRING_BUF_2(_1, _2) {\
   if (append_string_buf(_1, _2) == -1) {\
@@ -162,7 +162,7 @@ WHILE       (?i:while)
 CASE        (?i:case)
 ESAC        (?i:esac)
 OF          (?i:of)
-ARROW      ("=>")
+DARROW      ("=>")
 NEW         (?i:new)
 IN          (?i:in)
 INHERITS    (?i:inherits)
@@ -175,7 +175,7 @@ ASSIGN      ("<-")
 NOT         (?i:not)
 LE          ("<=")
 
-/* DELIMITER */
+/* DELIMITADORES */
 
 COM_BEGIN ("(*")
 COM_END   ("*)")
@@ -185,12 +185,13 @@ LINE_COM_BEGIN  ("--")
 STR_DELIM     ("\"")
 
 /* FAZ MATCH COM QUALQUER COISA RESTANTE */
+
 ANY (.)
 
 %%
 
  /*
-  * (A <
+  * (A < ASD
   */
 
 {COM_BEGIN} {
@@ -200,7 +201,7 @@ ANY (.)
 }
 
 <COMMENT>{COM_BEGIN} {
-  /* comentario aninhado */
+  /* comentario aninhado  */
   comment_depth++;
 }
 
@@ -211,7 +212,7 @@ ANY (.)
 }
 
 <COMMENT>{COM_END} { 
-  /* Fim de comentario*/
+  /* Fim de comentario */
   comment_depth--;
 
   if(comment_depth == 0) {
@@ -233,11 +234,15 @@ ANY (.)
 }
 
 <COMMENT>{ANY} {
-  //
+  /* comentario bloco */
+
+  // Comentario de bloco
 }
 
 {LINE_COM_BEGIN}{ANY}* {
-  //
+  /* Linha comentada */
+  
+  // linha comentada
 }
 
 {STR_DELIM} { 
@@ -245,7 +250,7 @@ ANY (.)
   init_string_buf();
 }
 
-<STRING>{STR_DELIM}		{
+<STRING>{STR_DELIM} {
   BEGIN(INITIAL);
 
   if(string_buf_overflow_flag){
@@ -300,7 +305,7 @@ ANY (.)
   APPEND_STRING_BUF(yytext);
 }
 
-/* ACTIONS PARA TOKENS */
+ /* ACTIONS PARA TOKENS */
 
 {CLASS} {
   return (CLASS);
@@ -380,7 +385,7 @@ ANY (.)
   return (NOT);
 }
 
-/*  */
+ /* nova linha */
 
 {NEWLINE} {
   ++curr_lineno;
@@ -396,10 +401,10 @@ ANY (.)
   return (yytext[0]);
 }
 
-/* OPERADORES DE MAIS DE 1 CARACTER */
+ /* OPERADORES DE MAIS DE 1 CARACTER */
 
-{ARROW} {
-  return (ARROW);
+{DARROW} {
+  return (DARROW);
 }
 
 {ASSIGN} {
@@ -410,7 +415,7 @@ ANY (.)
   return (LE);
 }
 
-/* def: Symbols (Begin) */
+ /* def: Symbols (Begin) */
 
 {INT_CONST} {
   SET_SYMBOL(ADD_STRING__GET_ELEM(inttable, yytext, yyleng));
@@ -427,7 +432,7 @@ ANY (.)
   return (OBJECTID);
 }
 
-/* EXCECAO */
+ /* EXCECAO */
 
 {ANY} {
   SET_ERROR_MSG(yytext);
