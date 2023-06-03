@@ -11,6 +11,7 @@
 #include <cool-parse.h>
 #include <stringtab.h>
 #include <utilities.h>
+#include <stdlib.h>
 
 /* The compiler assumes these identifiers. */
 #define yylval cool_yylval
@@ -25,13 +26,14 @@ extern FILE *fin; /* we read from this file */
 /* define YY_INPUT assim podemos ler do arquivo FILE fin */
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max_size) \
-  if ( (result = fread( (char*)buf, sizeof(char), max_size, fin)) < 0) \
-    YY_FATAL_ERROR( "read() in flex scanner failed");
+	if ( (result = fread( (char*)buf, sizeof(char), max_size, fin)) < 0) \
+		YY_FATAL_ERROR( "read() in flex scanner failed");
 
 char string_buf[MAX_STR_CONST]; /* to assemble string constants */
 char *string_buf_ptr;
 
 extern int curr_lineno;
+extern int verbose_flag;
 
 extern YYSTYPE cool_yylval;
 
@@ -39,93 +41,33 @@ extern YYSTYPE cool_yylval;
  *  Add Your own definitions here
  */
 
-/* CONSTS */
-
-#define TRUE 1
-#define FALSE 0
-
-
-/* HELPERS */
-
-#define SET_ERROR_MSG(X) (cool_yylval.error_msg = X)
-
-#define SET_SYMBOL(X) (cool_yylval.symbol = X)
-
-#define ADD_STRING_1(TABLE, STR) (TABLE.add_string(STR))
-
-#define ADD_STRING_2(TABLE, STR, LEN) (TABLE.add_string(STR, LEN))
-
-#define GET_3D_MACRO(TABLE, STR, LEN, NAME, ...) NAME
-
-#define ADD_STRING__GET_ELEM(...) GET_3D_MACRO(__VA_ARGS__, ADD_STRING_2, ADD_STRING_1)(__VA_ARGS__)
-
-/* DEFINICOES DE STRING */
-
-#define APPEND_STRING_BUF_2(_1, _2) {\
-  if (append_string_buf(_1, _2) == -1) {\
-    string_buf_overflow_flag = TRUE;\
-  }\
-}
-
-#define APPEND_STRING_BUF_1(_1) {\
-  if (append_string_buf(_1) == -1) {\
-    string_buf_overflow_flag = TRUE;\
-  }\
-}
-
-#define GET_MACRO(_1, _2, NAME, ...) NAME
-
-#define APPEND_STRING_BUF(...) GET_MACRO(__VA_ARGS__, APPEND_STRING_BUF_2, APPEND_STRING_BUF_1)(__VA_ARGS__)
-
-#define ERROR_ON_STRING(MSG) {\
-  BEGIN(INITIAL);\
-  if (!string_invalid_char_flag) {\
-    SET_ERROR_MSG(MSG);\
-    return (ERROR);\
-  }\
-}
-
-/* PROFUNDIDADE DO COMENTARIO */
-
 int comment_depth = 0;
-
-char string_buf_overflow_flag = FALSE;
-
-char string_invalid_char_flag = FALSE;
-
-int append_string_buf(std::string str);
-
-int append_string_buf(std::string str, int length);
+int should_terminate = 0;
+int in_nested_comment = 0;
+int string_const_length = 0;
 
 %}
 
 %option noyywrap
 
-%x COMMENT
-%x STRING
-
-/*
- * Define names for regular expressions here.
- */
+%x NESTED_COM
+%x SIMPLE_COM
+%x STRING_CONST
+%x ESCAPE
 
 /* DEFINIÇÃO DE ALGUNS PSEUDONIMOS */
 
-BR (\n)
-CR (\r)
+TRUE  (t)(?i:rue)
+FALSE (f)(?i:alse)
 
-TRUE (t(?i:rue))
-FALSE (f(?i:alse))
+DIGIT               [0-9]
+UPPER_ALPHA         [A-Z]
+LOWER_ALPHA         [a-z]
 
-OPS  ("("|")"|"*"|"+"|","|"-"|"."|"/"|":"|";"|"<"|"="|"@"|"{"|"}"|"~")
-WS (" "|"\f"|"\r"|"\t"|"\v")
-
-DIGIT ([0-9])
-UPPER_ALPHA ([A-Z])
-LOWER_ALPHA ([a-z])
-
-LETTER  ({UPPER_ALPHA}|{LOWER_ALPHA})
-ID      ({LETTER}|{DIGIT}|_)
-NEWLINE ({BR})
+OPS                 ("+"|"-"|"*"|\/)
+SINGLE_OP           ("~"|"<"|"="|"("|")"|"{"|"}"|";"|":"|"."|","|"@")
+WS                  (" "|\f|\r|\t|\v)
+LETTER              ({UPPER_ALPHA}|{LOWER_ALPHA})
 
 /* DEFINIÇÃO DOS MEUS TOKENS */
 
@@ -147,291 +89,234 @@ IN          (?i:in)
 INHERITS    (?i:inherits)
 ISVOID      (?i:isvoid)
 INT_CONST   ({DIGIT}+)
-BOOL_CONST  ({TRUE}|{FALSE})
-TYPEID      ({UPPER_ALPHA}{ID}*)
-OBJECTID    ({LOWER_ALPHA}{ID}*)
+TYPEID      ("SELF_TYPE"|{UPPER_ALPHA}({LETTER}|{DIGIT}|"_")*)
+OBJECTID    ("self"|{LETTER}({LETTER}|{DIGIT}|"_")*)
 ASSIGN      ("<-")
 NOT         (?i:not)
 LE          ("<=")
 
 /* DELIMITADORES */
 
-COM_BEGIN ("(*")
-COM_END   ("*)")
-
-LINE_COM_BEGIN  ("--")
-
-STR_DELIM     ("\"")
-
-/* FAZ MATCH COM QUALQUER COISA RESTANTE */
-
-ANY (.)
+NESTED_COM_START   "\(\*"
+NESTED_COM_END     "\*\)"
+SIMP_COM_START     ("--")
+SIMP_COM_END       ("--")
+STR_CONST_START            \"
+STR_CONST_END              \"
 
 %%
 
- /*
-  * (A < ASD
-  */
+ /* KEY TERMS */
+  
+{CLASS}     return (CLASS);
+{ELSE}      return (ELSE);
+{FI}        return (FI);
+{IF}        return (IF);
+{IN}        return (IN);
+{INHERITS}  return (INHERITS);
+{LET}       return (LET);
+{LOOP}      return (LOOP);
+{POOL}      return (POOL);
+{THEN}      return (THEN);
+{WHILE}     return (WHILE);
+{CASE}      return (CASE);
+{ESAC}      return (ESAC);
+{OF}        return (OF);
+{NEW}       return (NEW);
+{ISVOID}    return (ISVOID);
+{NOT}       return (NOT);
+{DARROW}    return (DARROW);
+{ASSIGN}	  return (ASSIGN);
+{LE}		    return (LE);
 
-{COM_BEGIN} {
-  /* Começar comentario */
-  comment_depth++;
-  BEGIN(COMMENT);
-}
+ /* COMENTARIOS ANINHADOS */
 
-<COMMENT>{COM_BEGIN} {
-  /* comentario aninhado  */
-  comment_depth++;
-}
-
-{COM_END} { 
-  /* Fim de comentario sem par */
-  SET_ERROR_MSG("Unmatched *)");
-  return (ERROR);
-}
-
-<COMMENT>{COM_END} { 
-  /* Fim de comentario */
+{NESTED_COM_START} { comment_depth++; BEGIN(NESTED_COM); in_nested_comment = 1; }
+<NESTED_COM>{NESTED_COM_START} { comment_depth++; }
+<NESTED_COM>{NESTED_COM_END} {
   comment_depth--;
 
-  if(comment_depth == 0) {
+  if (comment_depth < 0) {
+    cool_yylval.error_msg = "Unmatched *)";
+	  return (ERROR);
+  }
+
+  if (comment_depth == 0) {
+    in_nested_comment = 0;
     BEGIN(INITIAL);
   }
 }
-
-<COMMENT><<EOF>> {
-  /* Fim de arquivo sem fechar comentario */
-  
-  BEGIN(INITIAL); // Don't end lexer with comment block!
-  SET_ERROR_MSG("EOF in comment");
-  return (ERROR);
-}
-
-<COMMENT>{NEWLINE} {
-  /* LINE FEED */
-  curr_lineno++;
-}
-
-<COMMENT>{ANY} {
-  /* comentario bloco */
-
-  // Comentario de bloco
-}
-
-{LINE_COM_BEGIN}{ANY}* {
-  /* Linha comentada */
-  
-  // linha comentada
-}
-
-{STR_DELIM} { 
-  BEGIN(STRING);
-}
-
-<STRING>{STR_DELIM} {
-  BEGIN(INITIAL);
-
-  if(string_buf_overflow_flag){
-    SET_ERROR_MSG("String constant too long");
-
+<NESTED_COM><<EOF>> {
+    if (should_terminate)
+      yyterminate();
+      
+    cool_yylval.error_msg = "EOF in comment";
+    should_terminate = 1;
     return (ERROR);
-  } else if (string_invalid_char_flag){
+}
+<NESTED_COM>\n        { curr_lineno++; }
+<NESTED_COM>.         {  }
 
-  } else {
-    SET_SYMBOL(ADD_STRING__GET_ELEM(stringtable, string_buf));
-    return (STR_CONST);
+{NESTED_COM_END} {
+  if (!in_nested_comment) {
+    cool_yylval.error_msg = "Unmatched *)";
+	  return (ERROR);
   }
 }
 
-<STRING><<EOF>> {
-  ERROR_ON_STRING("EOF in string constant");
+ /* COMENTARIO SIMPLES */
+
+{SIMP_COM_START} { BEGIN(SIMPLE_COM); }
+<SIMPLE_COM>\n        { curr_lineno++; BEGIN(INITIAL); }
+<SIMPLE_COM>.         {  }
+
+
+ /* TOKENS DE STRINGS */
+
+{STR_CONST_START}  { BEGIN(STRING_CONST); }
+<STRING_CONST>{STR_CONST_END} {
+  string_buf_ptr = (char*) &string_buf;
+  cool_yylval.symbol = idtable.add_string(string_buf_ptr, string_const_length);
+  string_const_length = 0;
+  BEGIN(INITIAL);
+  return (STR_CONST);
+}
+<STRING_CONST><<EOF>> {
+    if (should_terminate)
+      yyterminate();
+      
+    cool_yylval.error_msg = "EOF in string constant";
+    should_terminate = 1;
+    return (ERROR);
+}
+<STRING_CONST>\0 {
+  	cool_yylval.error_msg = "String contains null character";
+    string_const_length = 0;
+		BEGIN(ESCAPE);
+		return ERROR;
+}
+<STRING_CONST>\n {
+  	cool_yylval.error_msg = "Unterminated string constant";
+    string_const_length = 0;
+    curr_lineno++;
+	  BEGIN(INITIAL);
+		return ERROR;
+}
+<STRING_CONST>"\\n" {
+    if (string_const_length + 1< MAX_STR_CONST) {
+      string_buf[string_const_length++] = '\n'; 
+    } 
+    else {
+      cool_yylval.error_msg = "String constant too long";
+      string_const_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONST>"\\t" {
+    if (string_const_length + 1 < MAX_STR_CONST) {
+      string_buf[string_const_length++] = '\t'; 
+    } 
+    else {
+      cool_yylval.error_msg = "String constant too long";
+      string_const_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONST>"\\b" {
+    if (string_const_length + 1 < MAX_STR_CONST) {
+      string_buf[string_const_length++] = '\b'; 
+    } 
+    else {
+      cool_yylval.error_msg = "String constant too long";
+      string_const_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONST>"\\f" {
+    if (string_const_length + 1 < MAX_STR_CONST) {
+      string_buf[string_const_length++] = '\f'; 
+    } 
+    else {
+      cool_yylval.error_msg = "String constant too long";
+      string_const_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONST>"\\"[^\0] {
+    if (string_const_length + 1 < MAX_STR_CONST) {
+      string_buf[string_const_length++] = yytext[1]; 
+    } 
+    else {
+      cool_yylval.error_msg = "String constant too long";
+      string_const_length = 0;
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
+}
+<STRING_CONST>. {
+    if (string_const_length + 1 < MAX_STR_CONST ) {
+      string_buf[string_const_length++] = yytext[0];
+    }
+    else {
+      cool_yylval.error_msg = "String constant too long";
+        string_const_length = 0;
+
+      BEGIN(ESCAPE);
+      return (ERROR); 
+    }
 }
 
-<STRING>\0 {
-  SET_ERROR_MSG("String contains invalid character");
+<ESCAPE>[\n|"]	 { BEGIN(INITIAL);  }
+<ESCAPE>[^\n|"]	 { }
+
+
+ /* TOKENS DE APENAS UM SIMBOLO */
   
-  string_invalid_char_flag = TRUE;
+{SINGLE_OP} { return (int)(yytext[0]); }
+{OPS} { return (int)(yytext[0]); }
 
-  return (ERROR);
+ /* CONSTANTE BOOLEANA */
+{TRUE} {
+	cool_yylval.boolean = true;
+	return (BOOL_CONST);
 }
-
-<STRING>{NEWLINE}	{
-  ++curr_lineno;
-  ERROR_ON_STRING("Unterminated string constant");
-}
-
-<STRING>\\[^\0]	{
-  char matched = yytext[1];
-  char text = matched;
-
-  if (matched == 'b') {
-    text = '\b';
-  } else if (matched == 't') {
-    text = '\t';
-  } else if (matched == 'n') {
-    text = '\n';
-  } else if (matched == 'f') {
-    text = '\f';
-  } else if (matched == '\n') {
-    ++curr_lineno;
-  }
-
-  APPEND_STRING_BUF(&text, 1);
-}
-
-<STRING>. {
-  APPEND_STRING_BUF(yytext);
-}
-
- /* ACTIONS PARA TOKENS */
-
-{CLASS} {
-  return (CLASS);
-}
-
-{ELSE} {
-  return (ELSE);
-}
-
-{FI} {
-  return (FI);
-}
-
-{IF} {
-  return (IF);
-}
-
-{IN} {
-  return (IN);
-}
-
-{INHERITS} {
-  return (INHERITS);
-}
-
-{LET} {
-  return (LET);
-}
-
-{LOOP} {
-  return (LOOP);
-}
-
-{POOL} {
-  return (POOL);
-}
-
-{THEN} {
-  return (THEN);
-}
-
-{WHILE} {
-  return (WHILE);
-}
-
-{CASE} {
-  return (CASE);
-}
-
-{ESAC} {
-  return (ESAC);
-}
-
-{OF} {
-  return (OF);
-}
-
-{NEW} {
-  return (NEW);
-}
-
-{ISVOID} {
-  return (ISVOID);
-}
-
-{TRUE} { 
-  cool_yylval.boolean = true;
-  return (BOOL_CONST);
-}
-
 {FALSE} {
-  cool_yylval.boolean = false;
-  return (BOOL_CONST);
+	cool_yylval.boolean = false;
+	return (BOOL_CONST);
 }
 
-{NOT} {
-  return (NOT);
-}
-
- /* nova linha */
-
-{NEWLINE} {
-  ++curr_lineno;
-}
-
-{WS} {
-   
-}
-
- /* OBTEM OPERADORES DE MANEIRA GENERICA */
-
-{OPS} {
-  return (yytext[0]);
-}
-
- /* OPERADORES DE MAIS DE 1 CARACTER */
-
-{DARROW} {
-  return (DARROW);
-}
-
-{ASSIGN} {
-  return (ASSIGN);
-}
-
-{LE} {
-  return (LE);
-}
-
- /* def: Symbols (Begin) */
+ /* CONSTANTE DE INTEIRO */
 
 {INT_CONST} {
-  SET_SYMBOL(ADD_STRING__GET_ELEM(inttable, yytext, yyleng));
+  cool_yylval.symbol = idtable.add_string(yytext);
   return (INT_CONST);
 }
 
+ /* TYPEID */
+
 {TYPEID} {
-  SET_SYMBOL(ADD_STRING__GET_ELEM(idtable, yytext, yyleng));
+  cool_yylval.symbol = idtable.add_string(yytext);
   return (TYPEID);
 }
 
 {OBJECTID} {
-  SET_SYMBOL(ADD_STRING__GET_ELEM(idtable, yytext, yyleng));
+  cool_yylval.symbol = idtable.add_string(yytext);
   return (OBJECTID);
 }
 
- /* EXCECAO */
+ /* VERIFICACAO DE NOVAS LINHAS */
+\n	 { curr_lineno++; }
+{WS}+ {}
 
-{ANY} {
-  SET_ERROR_MSG(yytext);
-  return (ERROR);    
-}
 
+ /* IDENTIFICACAO DE ERROS */
+.		{
+			cool_yylval.error_msg = yytext;
+			return (ERROR);
+		}
 
 %%
-
-int append_string_buf(std::string str) {
-  return append_string_buf(str, str.length());
-}
-
-int append_string_buf(std::string str, int length) {
-  int result_length = strlen(string_buf) + length;
-
-  if (result_length >= MAX_STR_CONST) {
-    return -1;  
-  }
-
-  strncat(string_buf, str.c_str(), length);
-
-  return result_length;
-}
